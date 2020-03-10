@@ -1096,7 +1096,7 @@ namespace Azure.Storage.Files.DataLake.Tests
         }
 
         [Test]
-        [Ignore("Until we know what ACL format remove accepts")]
+        ////[Ignore("Until we know what ACL format remove accepts")]
         [ServiceVersion(Min = BlobClientOptions.ServiceVersion.V2019_12_12)]
         public async Task RemoveAccessControlRecursiveAsync()
         {
@@ -1111,8 +1111,10 @@ namespace Azure.Storage.Files.DataLake.Tests
 
             await directory.SetAccessControlListRecursiveAsync(AccessControlList);
 
+            var acl = PathAccessControlExtensions.ParseAccessControlList("user::");
+
             // Act
-            ChangeAccessControlListResult result = await directory.RemoveAccessControlListRecursiveAsync(AccessControlList);
+            ChangeAccessControlListResult result = await directory.RemoveAccessControlListRecursiveAsync(acl);
 
             // Assert
             Assert.AreEqual(3, result.DirectoriesSuccessfulCount);

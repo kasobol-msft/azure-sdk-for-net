@@ -30,7 +30,7 @@ namespace Azure.Storage.Files.DataLake.Models
         /// <summary>
         /// Specifies the permissions granted to this entry.
         /// </summary>
-        public RolePermissions Permissions { get; set; }
+        public RolePermissions? Permissions { get; set; }
 
         /// <summary>
         /// Empty constructor.
@@ -76,9 +76,15 @@ namespace Azure.Storage.Files.DataLake.Models
             }
             stringBuilder.Append(AccessControlType.ToString().ToLowerInvariant());
             stringBuilder.Append(":");
-            stringBuilder.Append(EntityId ?? "");
-            stringBuilder.Append(":");
-            stringBuilder.Append(Permissions.ToSymbolicRolePermissions());
+            if (!string.IsNullOrWhiteSpace(EntityId) || Permissions.HasValue)
+            {
+                stringBuilder.Append(EntityId ?? "");
+            }
+            if (Permissions.HasValue)
+            {
+                stringBuilder.Append(":");
+                stringBuilder.Append(Permissions?.ToSymbolicRolePermissions());
+            }
 
             return stringBuilder.ToString();
         }
@@ -120,7 +126,11 @@ namespace Azure.Storage.Files.DataLake.Models
                 entry.EntityId = parts[1 + indexOffset];
             }
 
-            entry.Permissions = PathAccessControlExtensions.ParseSymbolicRolePermissions(parts[2 + indexOffset], false);
+            var permissionString = parts[2 + indexOffset];
+            if (!string.IsNullOrWhiteSpace(permissionString))
+            {
+                entry.Permissions = PathAccessControlExtensions.ParseSymbolicRolePermissions(parts[2 + indexOffset], false);
+            }
             return entry;
         }
 

@@ -1016,6 +1016,67 @@ namespace Azure.Storage.Files.DataLake.Tests
                 Times.Exactly(4));
         }
 
+
+        [Test]
+        [ServiceVersion(Min = BlobClientOptions.ServiceVersion.V2019_12_12)]
+        public async Task SetAccessControlRecursiveAsync_InBatches_WithProgressMonitoring_WithFailures()
+        {
+            string fileSystemName = GetNewFileSystemName();
+            string rootDirectoryName = GetNewDirectoryName();
+
+            // Create tree as superuser (shared key)
+            await using DisposingFileSystem test = await GetNewFileSystem(fileSystemName: fileSystemName);
+            DataLakeDirectoryClient directory = await test.FileSystem.CreateDirectoryAsync(rootDirectoryName);
+            DataLakeDirectoryClient subdirectory1 = await directory.CreateSubDirectoryAsync(GetNewDirectoryName());
+            DataLakeFileClient file1 = await subdirectory1.CreateFileAsync(GetNewFileName());
+            DataLakeFileClient file2 = await subdirectory1.CreateFileAsync(GetNewFileName());
+            DataLakeDirectoryClient subdirectory2 = await directory.CreateSubDirectoryAsync(GetNewDirectoryName());
+            DataLakeFileClient file3 = await subdirectory2.CreateFileAsync(GetNewFileName());
+            DataLakeFileClient file4 = await directory.CreateFileAsync(GetNewFileName());
+
+            Mock<IProgress<ChangeAccessControlListPartialResult>> progresMonitorMock = new Mock<IProgress<ChangeAccessControlListPartialResult>>();
+
+            int batchSize = 2;
+
+            var acl = PathAccessControlExtensions.ParseAccessControlList("user::rwx,group::rwx,other::rwx,mask::rwx");
+            await directory.SetAccessControlListRecursiveAsync(acl);
+
+            // Set ownership to AAD APP SPN on root.
+            await directory.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
+
+            var readOnlyAcl = PathAccessControlExtensions.ParseAccessControlList("user::r--,group::r--,other::r--,mask::r--");
+
+            await subdirectory2.SetAccessControlListRecursiveAsync(readOnlyAcl);
+
+            // Create Client for AAD APP
+            TokenCredential tokenCredential = GetOAuthCredential(TestConfigHierarchicalNamespace);
+            Uri uri = new Uri($"{TestConfigHierarchicalNamespace.BlobServiceEndpoint}/{fileSystemName}/{rootDirectoryName}").ToHttps();
+            DataLakeDirectoryClient directoryClient = InstrumentClient(new DataLakeDirectoryClient(uri, tokenCredential, GetOptions()));
+
+            // Create subdirectory as AAD APP so that ownership is right
+            DataLakeDirectoryClient dirClient = await directoryClient.CreateSubDirectoryAsync(GetNewDirectoryName());
+            // Update of ACL on owned directory fails
+            await dirClient.SetAccessControlListAsync(acl);
+            // Recursive update of ACL on owned directory also fails
+            await dirClient.SetAccessControlListRecursiveAsync(acl);
+
+            // Act
+            ChangeAccessControlListResult result = await directoryClient.SetAccessControlListRecursiveAsync(
+                accessControlList: AccessControlList,
+                batchSize: batchSize,
+                progressHandler: progresMonitorMock.Object);
+            Console.WriteLine(result.FailureCount);
+
+            // Assert
+            //Assert.AreEqual(3, result.DirectoriesSuccessfulCount);
+            //Assert.AreEqual(4, result.FilesSuccessfulCount);
+            //Assert.AreEqual(0, result.FailureCount);
+
+            progresMonitorMock.Verify(
+                x => x.Report(It.Is<ChangeAccessControlListPartialResult>(arg => arg.DirectoriesSuccessfulCount + arg.FilesSuccessfulCount <= batchSize)),
+                Times.Exactly(4));
+        }
+
         [Test]
         [ServiceVersion(Min = BlobClientOptions.ServiceVersion.V2019_12_12)]
         public async Task ModifyAccessControlRecursiveAsync()

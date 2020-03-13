@@ -1023,6 +1023,7 @@ namespace Azure.Storage.Files.DataLake.Tests
         {
             string fileSystemName = GetNewFileSystemName();
             string rootDirectoryName = GetNewDirectoryName();
+            string usersDirectory = GetNewDirectoryName();
 
             // Create tree as superuser (shared key)
             await using DisposingFileSystem test = await GetNewFileSystem(fileSystemName: fileSystemName);
@@ -1038,29 +1039,77 @@ namespace Azure.Storage.Files.DataLake.Tests
 
             int batchSize = 2;
 
-            var acl = PathAccessControlExtensions.ParseAccessControlList("user::rwx,group::rwx,other::rwx,mask::rwx");
-            await directory.SetAccessControlListRecursiveAsync(acl);
+            var acl = PathAccessControlExtensions.ParseAccessControlList("user::rwx,group::rwx,other::rwx");
 
-            // Set ownership to AAD APP SPN on root.
+            string signedIdentifierId = GetNewString();
+            DataLakeSignedIdentifier signedIdentifier = new DataLakeSignedIdentifier
+            {
+                Id = signedIdentifierId,
+                AccessPolicy = new DataLakeAccessPolicy
+                {
+                    StartsOn = Recording.UtcNow.AddHours(-1),
+                    ExpiresOn = Recording.UtcNow.AddHours(1),
+                    Permissions = "rwx"
+                }
+            };
+
+            await test.FileSystem.SetAccessPolicyAsync(permissions: new DataLakeSignedIdentifier[] { signedIdentifier });
+            await test.FileSystem.GetAccessPolicyAsync();
+
+
+            // Set ownership to AAD APP SPN.
             await directory.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
+            await subdirectory1.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
+            await file1.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
+            await file2.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
+            await subdirectory2.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
+            await file3.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
+            await file4.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
 
-            var readOnlyAcl = PathAccessControlExtensions.ParseAccessControlList("user::r--,group::r--,other::r--,mask::r--");
-
-            await subdirectory2.SetAccessControlListRecursiveAsync(readOnlyAcl);
+            await directory.GetAccessControlAsync();
+            await subdirectory1.GetAccessControlAsync();
+            await file1.GetAccessControlAsync();
+            await file2.GetAccessControlAsync();
+            await subdirectory2.GetAccessControlAsync();
+            await file3.GetAccessControlAsync();
+            await file3.GetAccessControlAsync();
 
             // Create Client for AAD APP
             TokenCredential tokenCredential = GetOAuthCredential(TestConfigHierarchicalNamespace);
             Uri uri = new Uri($"{TestConfigHierarchicalNamespace.BlobServiceEndpoint}/{fileSystemName}/{rootDirectoryName}").ToHttps();
             DataLakeDirectoryClient directoryClient = InstrumentClient(new DataLakeDirectoryClient(uri, tokenCredential, GetOptions()));
 
-            // Create subdirectory as AAD APP so that ownership is right
-            DataLakeDirectoryClient dirClient = await directoryClient.CreateSubDirectoryAsync(GetNewDirectoryName());
-            // Update of ACL on owned directory fails
-            await dirClient.SetAccessControlListAsync(acl);
-            // Recursive update of ACL on owned directory also fails
-            await dirClient.SetAccessControlListRecursiveAsync(acl);
+            await directoryClient.CreateSubDirectoryAsync(usersDirectory);
+            await directory.GetSubDirectoryClient(usersDirectory).GetAccessControlAsync();
 
-            // Act
+            // Update of ACL on owned directory fails
+            try
+            {
+                await directoryClient.GetAccessControlAsync();
+            }
+            catch
+            {
+
+            }
+            try
+            {
+                await directoryClient.SetAccessControlListAsync(acl);
+            } catch
+            {
+
+            }
+            // Recursive update of ACL on owned directory also fails
+            try
+            {
+                await directoryClient.SetAccessControlListRecursiveAsync(acl);
+            }
+            catch
+            {
+            }
+
+            await directoryClient.GetSubDirectoryClient(usersDirectory).SetAccessControlListAsync(acl);
+
+                // Act
             ChangeAccessControlListResult result = await directoryClient.SetAccessControlListRecursiveAsync(
                 accessControlList: AccessControlList,
                 batchSize: batchSize,

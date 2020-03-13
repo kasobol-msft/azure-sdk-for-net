@@ -1027,6 +1027,7 @@ namespace Azure.Storage.Files.DataLake.Tests
 
             // Create tree as superuser (shared key)
             await using DisposingFileSystem test = await GetNewFileSystem(fileSystemName: fileSystemName);
+            DataLakeDirectoryClient root = test.FileSystem.GetRootDirectoryClient();
             DataLakeDirectoryClient directory = await test.FileSystem.CreateDirectoryAsync(rootDirectoryName);
             DataLakeDirectoryClient subdirectory1 = await directory.CreateSubDirectoryAsync(GetNewDirectoryName());
             DataLakeFileClient file1 = await subdirectory1.CreateFileAsync(GetNewFileName());
@@ -1058,13 +1059,14 @@ namespace Azure.Storage.Files.DataLake.Tests
 
 
             // Set ownership to AAD APP SPN.
+            await root.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
             await directory.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
             await subdirectory1.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
             await file1.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
             await file2.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
             await subdirectory2.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
             await file3.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
-            await file4.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
+            ////await file4.SetAccessControlListAsync(acl, "c4f48289-bb84-4086-b250-6f94a8f64cee", "c4f48289-bb84-4086-b250-6f94a8f64cee");
 
             await directory.GetAccessControlAsync();
             await subdirectory1.GetAccessControlAsync();

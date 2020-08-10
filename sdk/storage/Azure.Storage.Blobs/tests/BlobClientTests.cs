@@ -21,7 +21,7 @@ namespace Azure.Storage.Blobs.Test
     public class BlobClientTests : BlobTestBase
     {
         public BlobClientTests(bool async, BlobClientOptions.ServiceVersion serviceVersion)
-            : base(async, serviceVersion, null /* RecordedTestMode.Record /* to re-record */)
+            : base(async, serviceVersion, RecordedTestMode.Record /* RecordedTestMode.Record /* to re-record */)
         {
         }
 
@@ -163,6 +163,32 @@ namespace Azure.Storage.Blobs.Test
             using var actual = new MemoryStream();
             await download.Value.Content.CopyToAsync(actual);
             TestHelper.AssertSequenceEqual(data, actual.ToArray());
+        }
+
+        [Test]
+        public async Task UploadAsyncFromMiddleOfStream()
+        {
+            await using DisposingContainer test = await GetTestContainerAsync();
+
+            var name = GetNewBlobName();
+            BlobClient blob = InstrumentClient(test.Container.GetBlobClient(name));
+            var data = GetRandomBuffer(Constants.KB);
+            int offset = 10;
+
+            using (var stream = new MemoryStream(data))
+            {
+                stream.Seek(offset, SeekOrigin.Begin);
+                await blob.UploadAsync(stream);
+            }
+
+            System.Collections.Generic.IList<BlobItem> blobs = await test.Container.GetBlobsAsync().ToListAsync();
+            Assert.AreEqual(1, blobs.Count);
+            Assert.AreEqual(name, blobs.First().Name);
+
+            Response<BlobDownloadInfo> download = await blob.DownloadAsync();
+            using var actual = new MemoryStream();
+            await download.Value.Content.CopyToAsync(actual);
+            TestHelper.AssertSequenceEqual(data.Skip(offset), actual.ToArray());
         }
 
         [Test]

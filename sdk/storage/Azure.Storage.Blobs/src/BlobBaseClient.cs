@@ -916,6 +916,95 @@ namespace Azure.Storage.Blobs.Specialized
         }
 
         /// <summary>
+        /// The <see cref="DownloadData(BlobRequestConditions, CancellationToken)"/>
+        /// operation downloads a blob from the service, including its metadata
+        /// and properties.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob">
+        /// Get Blob</see>.
+        /// </summary>
+        /// <param name="conditions">
+        /// Optional <see cref="BlobRequestConditions"/> to add conditions on
+        /// downloading this blob.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Response{BlobDownloadDataResult}"/> describing the
+        /// downloaded blob.  <see cref="BlobDownloadDataResult.Data"/> contains
+        /// the blob's data.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="RequestFailedException"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+        public virtual Response<BlobDownloadDataResult> DownloadData(
+            BlobRequestConditions conditions = default,
+            CancellationToken cancellationToken = default) =>
+            DownloadDataInternal(
+                conditions,
+                false, // async
+                cancellationToken)
+                .EnsureCompleted();
+
+        /// <summary>
+        /// The <see cref="DownloadDataAsync(BlobRequestConditions, CancellationToken)"/>
+        /// operation downloads a blob from the service, including its metadata
+        /// and properties.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob">
+        /// Get Blob</see>.
+        /// </summary>
+        /// <param name="conditions">
+        /// Optional <see cref="BlobRequestConditions"/> to add conditions on
+        /// downloading this blob.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Response{BlobDownloadDataResult}"/> describing the
+        /// downloaded blob.  <see cref="BlobDownloadDataResult.Data"/> contains
+        /// the blob's data.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="RequestFailedException"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+        public virtual async Task<Response<BlobDownloadDataResult>> DownloadDataAsync(
+            BlobRequestConditions conditions = default,
+            CancellationToken cancellationToken = default) =>
+            await DownloadDataInternal(
+                conditions,
+                true, // async
+                cancellationToken)
+                .ConfigureAwait(false);
+
+        private async Task<Response<BlobDownloadDataResult>> DownloadDataInternal(
+            BlobRequestConditions conditions,
+            bool async,
+            CancellationToken cancellationToken)
+        {
+            Response<BlobDownloadInfo> response = await DownloadInternal(default, conditions, default, async, cancellationToken).ConfigureAwait(false);
+            using BlobDownloadInfo blobDownloadInfo = response.Value;
+            BinaryData data = null;
+            if (async)
+            {
+                data = await BinaryData.FromStreamAsync(blobDownloadInfo.Content, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                data = BinaryData.FromStream(blobDownloadInfo.Content);
+            }
+            return Response.FromValue(new BlobDownloadDataResult(blobDownloadInfo, data), response.GetRawResponse());
+        }
+
+        /// <summary>
         /// The <see cref="StartDownloadAsync"/> operation starts downloading
         /// a blob from the service from a given <paramref name="startOffset"/>.
         /// </summary>

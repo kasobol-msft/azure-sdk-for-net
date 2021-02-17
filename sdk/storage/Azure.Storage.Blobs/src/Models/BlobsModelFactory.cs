@@ -1032,5 +1032,83 @@ namespace Azure.Storage.Blobs.Models
                 AccountKind = accountKind,
             };
         }
+
+        /// <summary>
+        /// Creates a new BlobDownloadDataResult instance for mocking.
+        /// </summary>
+        public static BlobDownloadDataResult BlobDownloadDataResult(
+            DateTimeOffset lastModified = default,
+            long blobSequenceNumber = default,
+            BlobType blobType = default,
+            byte[] contentCrc64 = default,
+            string contentLanguage = default,
+            string copyStatusDescription = default,
+            string copyId = default,
+            string copyProgress = default,
+            Uri copySource = default,
+            CopyStatus copyStatus = default,
+            string contentDisposition = default,
+            LeaseDurationType leaseDuration = default,
+            string cacheControl = default,
+            LeaseState leaseState = default,
+            string contentEncoding = default,
+            LeaseStatus leaseStatus = default,
+            byte[] contentHash = default,
+            string acceptRanges = default,
+            ETag eTag = default,
+            int blobCommittedBlockCount = default,
+            string contentRange = default,
+            bool isServerEncrypted = default,
+            string contentType = default,
+            string encryptionKeySha256 = default,
+            string encryptionScope = default,
+            long contentLength = default,
+            byte[] blobContentHash = default,
+            string versionId = default,
+            IDictionary<string, string> metadata = default,
+            BinaryData data = default,
+            DateTimeOffset copyCompletionTime = default,
+            long tagCount = default,
+            DateTimeOffset lastAccessed = default)
+        {
+            return new BlobDownloadDataResult(
+                new BlobDownloadInfo(
+                new FlattenedDownloadProperties()
+                {
+                    LastModified = lastModified,
+                    BlobSequenceNumber = blobSequenceNumber,
+                    BlobType = blobType,
+                    ContentCrc64 = contentCrc64,
+                    ContentLanguage = contentLanguage,
+                    CopyStatusDescription = copyStatusDescription,
+                    CopyId = copyId,
+                    CopyProgress = copyProgress,
+                    CopySource = copySource,
+                    CopyStatus = copyStatus,
+                    ContentDisposition = contentDisposition,
+                    LeaseDuration = leaseDuration,
+                    CacheControl = cacheControl,
+                    LeaseState = leaseState,
+                    ContentEncoding = contentEncoding,
+                    LeaseStatus = leaseStatus,
+                    ContentHash = contentHash,
+                    AcceptRanges = acceptRanges,
+                    ETag = eTag,
+                    BlobCommittedBlockCount = blobCommittedBlockCount,
+                    ContentRange = contentRange,
+                    IsServerEncrypted = isServerEncrypted,
+                    ContentType = contentType,
+                    EncryptionKeySha256 = encryptionKeySha256,
+                    EncryptionScope = encryptionScope,
+                    ContentLength = contentLength,
+                    BlobContentHash = blobContentHash,
+                    Metadata = metadata,
+                    CopyCompletionTime = copyCompletionTime,
+                    VersionId = versionId,
+                    TagCount = tagCount,
+                    LastAccessed = lastAccessed
+                }
+            ), data);
+        }
     }
 }

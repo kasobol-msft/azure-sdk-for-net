@@ -1246,6 +1246,94 @@ namespace Azure.Storage.Blobs
         }
 
         /// <summary>
+        /// The <see cref="Upload(BinaryData, BlobUploadOptions, CancellationToken)"/>
+        /// operation creates a new block blob or updates the content of an
+        /// existing block blob.  Updating an existing block blob overwrites
+        /// any existing metadata on the blob.
+        ///
+        /// For partial block blob updates and other advanced features, please
+        /// see <see cref="BlockBlobClient"/>.  To create or modify page or
+        /// append blobs, please see <see cref="PageBlobClient"/> or
+        /// <see cref="AppendBlobClient"/>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/put-blob">
+        /// Put Blob</see>.
+        /// </summary>
+        /// <param name="data">
+        /// A <see cref="BinaryData"/> containing the content to upload.
+        /// </param>
+        /// <param name="options">
+        /// Optional parameters.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Response{BlobContentInfo}"/> describing the
+        /// state of the updated block blob.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="RequestFailedException"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+        public virtual Response<BlobContentInfo> Upload(
+            BinaryData data,
+            BlobUploadOptions options,
+            CancellationToken cancellationToken = default) =>
+            StagedUploadInternal(
+                data.ToStream(),
+                options,
+                async: false,
+                cancellationToken: cancellationToken)
+            .EnsureCompleted();
+
+        /// <summary>
+        /// The <see cref="UploadAsync(BinaryData, BlobUploadOptions, CancellationToken)"/>
+        /// operation creates a new block blob or updates the content of an
+        /// existing block blob.  Updating an existing block blob overwrites
+        /// any existing metadata on the blob.
+        ///
+        /// For partial block blob updates and other advanced features, please
+        /// see <see cref="BlockBlobClient"/>.  To create or modify page or
+        /// append blobs, please see <see cref="PageBlobClient"/> or
+        /// <see cref="AppendBlobClient"/>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/put-blob">
+        /// Put Blob</see>.
+        /// </summary>
+        /// <param name="data">
+        /// A <see cref="BinaryData"/> containing the content to upload.
+        /// </param>
+        /// <param name="options">
+        /// Optional parameters.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Response{BlobContentInfo}"/> describing the
+        /// state of the updated block blob.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="RequestFailedException"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+        public virtual async Task<Response<BlobContentInfo>> UploadAsync(
+            BinaryData data,
+            BlobUploadOptions options,
+            CancellationToken cancellationToken = default) =>
+            await StagedUploadInternal(
+                data.ToStream(),
+                options,
+                async: true,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        /// <summary>
         /// This operation will create a new
         /// block blob of arbitrary size by uploading it as indiviually staged
         /// blocks if it's larger than the

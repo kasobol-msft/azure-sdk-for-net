@@ -916,6 +916,129 @@ namespace Azure.Storage.Blobs.Specialized
         }
 
         /// <summary>
+        /// The <see cref="DownloadData(HttpRange, BlobRequestConditions, bool, CancellationToken)"/>
+        /// operation downloads a blob from the service, including its metadata
+        /// and properties.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob">
+        /// Get Blob</see>.
+        /// </summary>
+        /// <param name="range">
+        /// If provided, only download the bytes of the blob in the specified
+        /// range.  If not provided, download the entire blob.
+        /// </param>
+        /// <param name="conditions">
+        /// Optional <see cref="BlobRequestConditions"/> to add conditions on
+        /// downloading this blob.
+        /// </param>
+        /// <param name="rangeGetContentHash">
+        /// When set to true and specified together with the <paramref name="range"/>,
+        /// the service returns the MD5 hash for the range, as long as the
+        /// range is less than or equal to 4 MB in size.  If this value is
+        /// specified without <paramref name="range"/> or set to true when the
+        /// range exceeds 4 MB in size, a <see cref="RequestFailedException"/>
+        /// is thrown.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Response{BlobDownloadDataResult}"/> describing the
+        /// downloaded blob.  <see cref="BlobDownloadDataResult.Data"/> contains
+        /// the blob's data.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="RequestFailedException"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+        public virtual Response<BlobDownloadDataResult> DownloadData(
+            HttpRange range = default,
+            BlobRequestConditions conditions = default,
+            bool rangeGetContentHash = default,
+            CancellationToken cancellationToken = default) =>
+            DownloadDataInternal(
+                range,
+                conditions,
+                rangeGetContentHash,
+                false, // async
+                cancellationToken)
+                .EnsureCompleted();
+
+        /// <summary>
+        /// The <see cref="DownloadDataAsync(HttpRange, BlobRequestConditions, bool, CancellationToken)"/>
+        /// operation downloads a blob from the service, including its metadata
+        /// and properties.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob">
+        /// Get Blob</see>.
+        /// </summary>
+        /// <param name="range">
+        /// If provided, only download the bytes of the blob in the specified
+        /// range.  If not provided, download the entire blob.
+        /// </param>
+        /// <param name="conditions">
+        /// Optional <see cref="BlobRequestConditions"/> to add conditions on
+        /// downloading this blob.
+        /// </param>
+        /// <param name="rangeGetContentHash">
+        /// When set to true and specified together with the <paramref name="range"/>,
+        /// the service returns the MD5 hash for the range, as long as the
+        /// range is less than or equal to 4 MB in size.  If this value is
+        /// specified without <paramref name="range"/> or set to true when the
+        /// range exceeds 4 MB in size, a <see cref="RequestFailedException"/>
+        /// is thrown.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Response{BlobDownloadDataResult}"/> describing the
+        /// downloaded blob.  <see cref="BlobDownloadDataResult.Data"/> contains
+        /// the blob's data.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="RequestFailedException"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+        public virtual async Task<Response<BlobDownloadDataResult>> DownloadDataAsync(
+            HttpRange range = default,
+            BlobRequestConditions conditions = default,
+            bool rangeGetContentHash = default,
+            CancellationToken cancellationToken = default) =>
+            await DownloadDataInternal(
+                range,
+                conditions,
+                rangeGetContentHash,
+                true, // async
+                cancellationToken)
+                .ConfigureAwait(false);
+
+        private async Task<Response<BlobDownloadDataResult>> DownloadDataInternal(
+            HttpRange range,
+            BlobRequestConditions conditions,
+            bool rangeGetContentHash,
+            bool async,
+            CancellationToken cancellationToken)
+        {
+            Response<BlobDownloadInfo> response = await DownloadInternal(range, conditions, rangeGetContentHash, async, cancellationToken).ConfigureAwait(false);
+            using BlobDownloadInfo blobDownloadInfo = response.Value;
+            BinaryData data = null;
+            if (async)
+            {
+                data = await BinaryData.FromStreamAsync(blobDownloadInfo.Content, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                data = BinaryData.FromStream(blobDownloadInfo.Content);
+            }
+            return Response.FromValue(new BlobDownloadDataResult(blobDownloadInfo, data), response.GetRawResponse());
+        }
+
+        /// <summary>
         /// The <see cref="StartDownloadAsync"/> operation starts downloading
         /// a blob from the service from a given <paramref name="startOffset"/>.
         /// </summary>

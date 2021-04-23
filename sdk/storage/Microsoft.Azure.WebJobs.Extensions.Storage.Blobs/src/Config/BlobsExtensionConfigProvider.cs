@@ -97,6 +97,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.Storage.Blobs.Config
             rule.BindToInput<BlobClient>((attr, cts) => CreateBlobReference<BlobClient>(attr, cts));
             rule.BindToInput<BlobBaseClient>((attr, cts) => CreateBlobReference<BlobBaseClient>(attr, cts));
 
+            bool shouldRegisterBlobAndStream = true; // this should be false if customer is using this code in .NET program.
+
+            if (shouldRegisterBlobAndStream)
+            {
+                rule.BindToInput<BlobAndStream>((attr, ctx) => CreateBlobAndStream(attr, ctx));
+            }
+
             // CloudBlobStream's derived functionality is only relevant to writing. check derived functionality
             rule.When("Access", FileAccess.Write).
                 BindToInput<Stream>(ConvertToCloudBlobStreamAsync);
@@ -115,6 +122,13 @@ namespace Microsoft.Azure.WebJobs.Extensions.Storage.Blobs.Config
 
             RegisterCommonConverters(rule);
             rule.AddConverter<BlobBaseClient, BlobClient>(ConvertBlobBaseClientToBlobClient);
+
+            bool shouldRegisterBlobAndStream = true; // this should be false if customer is using this code in .NET program.
+
+            if (shouldRegisterBlobAndStream)
+            {
+                rule.AddConverter<BlobBaseClient, BlobAndStream>(ConvertToBlobAndStreamAsync);
+            }
         }
 
 #pragma warning disable CS0618 // Type or member is obsolete. FluentBindingRule is "Not ready for public consumption."
@@ -123,6 +137,7 @@ namespace Microsoft.Azure.WebJobs.Extensions.Storage.Blobs.Config
         {
             //  Converter manager already has Stream-->Byte[],String,TextReader
             rule.AddConverter<BlobBaseClient, Stream>(ConvertToStreamAsync);
+
             // Blob type is a property of an existing blob.
             rule.AddConverter(new StorageBlobConverter<AppendBlobClient>());
             rule.AddConverter(new StorageBlobConverter<BlockBlobClient>());
@@ -178,6 +193,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.Storage.Blobs.Config
         {
             var blob = await GetBlobAsync(blobAttribute, cancellationToken, typeof(T)).ConfigureAwait(false);
             return (T)blob.BlobClient;
+        }
+
+        private async Task<BlobAndStream> CreateBlobAndStream(BlobAttribute blobAttribute, ValueBindingContext context)
+        {
+            Stream stream = await CreateStreamAsync(blobAttribute, context).ConfigureAwait(false);
+            BlobBaseClient client = await CreateBlobReference<BlobBaseClient>(blobAttribute, context.CancellationToken).ConfigureAwait(false);
+            return new BlobAndStream() {
+                BlobStream = stream,
+                Client = client,
+            };
         }
 
         #endregion
@@ -303,6 +328,16 @@ namespace Microsoft.Azure.WebJobs.Extensions.Storage.Blobs.Config
             };
         }
         #endregion
+
+        private async Task<BlobAndStream> ConvertToBlobAndStreamAsync(BlobBaseClient input, CancellationToken cancellationToken)
+        {
+            Stream stream = await ConvertToStreamAsync(input, cancellationToken).ConfigureAwait(false);
+            return new BlobAndStream()
+            {
+                BlobStream = stream,
+                Client = input
+            };
+        }
 
         private async Task<Stream> ConvertToStreamAsync(BlobBaseClient input, CancellationToken cancellationToken)
         {

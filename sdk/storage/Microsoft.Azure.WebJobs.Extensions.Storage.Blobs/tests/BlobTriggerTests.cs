@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
@@ -98,6 +99,45 @@ namespace Microsoft.Azure.WebJobs.Extensions.Storage.Blobs
             {
                 Assert.AreEqual("v1", blob1.Name);
                 this.Success = true;
+            }
+        }
+
+        [Test]
+        public async Task BlobTrigger_BindToBlobAndStream()
+        {
+            // Arrange
+            var container = CreateContainer(blobServiceClient, ContainerName);
+            var blob = container.GetBlockBlobClient(BlobName);
+            var blob2 = container.GetBlockBlobClient(BlobName + "2");
+            var blob3 = container.GetBlockBlobClient(BlobName + "3");
+
+            await blob.UploadTextAsync("ignore1");
+            await blob2.UploadTextAsync("ignore2");
+
+            // BlobAndStream
+            BlobAndStream result = await RunTriggerAsync<BlobAndStream>(typeof(BindToBlobAndStream),
+                (s) => BindToBlobAndStream.TaskSource = s);
+
+            // Assert
+            Assert.AreEqual(blob.Uri, result.Client.Uri);
+            Assert.AreEqual("ignore1", await new StreamReader(result.BlobStream).ReadToEndAsync());
+            Assert.AreEqual("ignore3", await blob3.DownloadTextAsync());
+        }
+
+        private class BindToBlobAndStream
+        {
+            public static TaskCompletionSource<BlobAndStream> TaskSource { get; set; }
+
+            public void Run(
+                [BlobTrigger(BlobPath)] BlobAndStream blobAndStream1,
+                [Blob(BlobPath + "2", FileAccess.Read)] BlobAndStream blobAndStream2,
+                [Blob(BlobPath + "3", FileAccess.Write)] BlobAndStream blobAndStream3
+                )
+            {
+                Assert.AreEqual("ignore2", new StreamReader(blobAndStream2.BlobStream).ReadToEnd());
+                using StreamWriter streamWriter = new StreamWriter(blobAndStream3.BlobStream);
+                streamWriter.Write("ignore3");
+                TaskSource.SetResult(blobAndStream1);
             }
         }
 
